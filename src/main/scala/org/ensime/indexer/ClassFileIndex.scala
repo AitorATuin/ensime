@@ -31,7 +31,11 @@ import org.ensime.config.ProjectConfig
 import org.ensime.util.ClassIterator
 import org.ensime.util.RichClassVisitor
 import org.ensime.util.CanonFile
+import org.ensime.util.JarCanonFile
+import org.ensime.util.JarCanonFile._
 import org.ensime.util.ClassLocation
+import org.ensime.util.FileUtils
+import org.ensime.util.FileUtils.JarPathRegex
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.Label
@@ -163,7 +167,7 @@ class ClassFileIndex(config: ProjectConfig) {
 
   def sourceFileCandidates(
     enclosingPackage: String,
-    classNamePrefix: String): Set[File] = {
+    classNamePrefix: String): Set[_ <: File] = {
     println("Looking for " + (enclosingPackage, classNamePrefix))
     val subPath = enclosingPackage.replace(".", "/") + "/" + classNamePrefix
     // TODO(aemoncannon): Build lookup structure to make this more efficient.
@@ -176,10 +180,22 @@ class ClassFileIndex(config: ProjectConfig) {
         loc.file.contains(subPath) ||
         loc.entry.contains(subPath)) => sourceNames
     }.flatten.toSet
-    sourceNames.flatMap { sourceName =>
-      allSources.filter(_.getName() == sourceName)
+   
+    def toJarSrc (jarFile: String): String =
+      jarFile match { 
+	case JarPathRegex(path, file) => path + "/srcs/" + file + "-sources.jar"
+	case _ => ""
+      }
+
+    sourceNames.flatMap((s) => allSources.filter(_.getName == s)) match { 
+      case s:Set[_] if s.size == 0 =>
+	sourceNames.flatMap(s => classFilesForSourceName(s).collect { 
+	  case loc:ClassLocation if 
+	    (loc.entry.contains(subPath) &&
+	     FileUtils.isValidJar(CanonFile(toJarSrc(loc.file)))) =>
+	       JarCanonFile(toJarSrc(loc.file),s)})
+      case s:Set[_] => s
     }
   }
-
 }
 

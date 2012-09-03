@@ -58,6 +58,7 @@
 (require 'ensime-doc)
 (require 'ensime-semantic-highlight)
 (require 'ensime-ui)
+(require 'ensime-jar)
 (eval-when (compile)
   (require 'apropos)
   (require 'compile))
@@ -2551,6 +2552,14 @@ any buffer visiting the given file."
       (progn
 	(ensime-push-definition-stack)
 	(ensime-goto-source-location pos where)))
+
+     ((ensime-jar-pos-valid-local-p pos)
+      (progn
+	(ensime-push-definition-stack)
+	(ensime-jar-goto-source-location pos
+					 (ensime-type-name type)
+					 (ensime-declared-as type)
+					 where)))
 
      (type
       (let ((info (ensime-rpc-inspect-type-by-id (ensime-type-id type))))

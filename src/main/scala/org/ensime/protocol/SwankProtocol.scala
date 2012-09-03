@@ -17,7 +17,7 @@
  *  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  *  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
  *  DISCLAIMED. IN NO EVENT SHALL Aemon Cannon BE LIABLE FOR ANY
- *  DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ *  DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CO SEQUENTIAL DAMAGES
  *  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  *  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -2020,10 +2020,16 @@ trait SwankProtocol extends Protocol {
   object SExpConversion {
 
     implicit def posToSExp(pos: Position): SExp = {
-      if (pos.isDefined) {
-        SExp.propList((":file", pos.source.path), (":offset", pos.point))
-      } else {
-        'nil
+      pos match { 
+	case p:JarPosition => { 
+	  SExp.propList((":jarFile", p.jarFile),
+			(":sourceFile", p.sourceFile))
+	}
+	case _ => if (pos.isDefined) { 
+          SExp.propList((":file", pos.source.path), (":offset", pos.point))	  
+	} else { 
+	  'nil
+	}
       }
     }
 

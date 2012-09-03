@@ -32,12 +32,16 @@ import scala.tools.nsc.interactive.{ Global, CompilerControl }
 import scala.tools.nsc.util.{ NoPosition, Position }
 import scala.tools.nsc.io.{ AbstractFile }
 import org.ensime.util.CanonFile
+import org.ensime.util.JarCanonFile
 import org.ensime.server.RichPresentationCompiler
 import org.ensime.server.SourceFileCandidatesReq
 
 abstract class EntityInfo(val name: String, val members: Iterable[EntityInfo]) {}
 
 case class SourcePosition(file: CanonFile, line: Int)
+
+case class JarPosition(jarFile: String, sourceFile:String)
+     extends Position
 
 class PackageInfo(
   override val name: String,
@@ -251,7 +255,7 @@ trait ModelBuilders { self: RichPresentationCompiler =>
   }
 
   def locateSymbolPos(sym: Symbol): Position = {
-    if (sym.pos != NoPosition) sym.pos
+    if  (sym.pos != NoPosition) sym.pos
     else {
       val pack = sym.enclosingPackage.fullName
       val top = sym.toplevelClass
@@ -259,17 +263,24 @@ trait ModelBuilders { self: RichPresentationCompiler =>
       else top.name + (if (top.isModuleClass) "$" else "")
       indexer !? (1000, SourceFileCandidatesReq(pack, name)) match {
         case Some(files: Set[File]) => {
-          files.flatMap { f =>
-	    println("Linking:" + (sym, f))
-            askLinkPos(sym, f.getAbsolutePath)
-          }.filter(_.isDefined).headOption.getOrElse(NoPosition)
-        }
-        case _ => NoPosition
+          files.flatMap {
+	    case f:JarCanonFile => 
+	      Some(JarPosition(f.file.getPath, f.innerFile.getOrElse("/")))
+	    case f:File => {
+	      println("Linking:" + (sym,f))
+	      askLinkPos(sym, f.getAbsolutePath)
+	    }
+	  }
+	}.filter(_ match { 
+	  case JarPosition(jf, sf) => true
+	  case p @ _ => p.isDefined
+	}).headOption.getOrElse(NoPosition)
+	case _ => NoPosition
       }
     }
   }
 
-  // When inspecting a type, transform a raw list of TypeMembers to a sorted
+   // When inspecting a type, transform a raw list of TypeMembers to a sorted
   // list of InterfaceInfo objects, each with its own list of sorted member infos.
   def prepareSortedInterfaceInfo(members: Iterable[Member]): Iterable[InterfaceInfo] = {
     // ...filtering out non-visible and non-type members

@@ -108,7 +108,27 @@ object CanonFile {
   }
 }
 
+class JarCanonFile (val file: CanonFile, val innerFile: Option[String]) extends File(file.getPath) {
+  self : File =>
+}
+
+object JarCanonFile { 
+  def apply(str: String, innerFile: String) =
+    new JarCanonFile(CanonFile(str), Some(innerFile))
+
+
+  def apply(str: String):JarCanonFile = 
+    new JarCanonFile(CanonFile(str), None)
+    
+  def apply(file: CanonFile):JarCanonFile = new JarCanonFile(file,None)
+
+  implicit def toJarCanonFile(file:CanonFile) = JarCanonFile(file) 
+  implicit def toJarCanonFile2(file:File) = JarCanonFile(CanonFile(file))
+}
+
 object FileUtils {
+
+  val JarPathRegex = """(.+)/jars/(.+)\.jar""".r
 
   def error[T](s: String): T = {
     throw new IOException(s)
